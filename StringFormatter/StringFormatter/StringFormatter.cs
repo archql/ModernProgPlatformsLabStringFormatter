@@ -7,9 +7,9 @@
             A, // first { readed
             B, // first } readed
             C, // readed any char after {
-            D, // readed any char (start state)
-            E, // exception
-            F  // readed } after word or empty
+            D, // readed any char (start state, terminator state)
+            E, // exception (terminator state)
+            F  // readed } after word or empty (identical to D except member postprocessing) (terminator state)
         }
         static private readonly IReadOnlyDictionary<State, Dictionary<char, State>> _states = new Dictionary<State, Dictionary<char, State>>()
         {
@@ -34,8 +34,8 @@
                 { 'A', State.D }
             } },
             {State.F, new Dictionary<char, State> {
-                { '{', State.D },
-                { '}', State.D },
+                { '{', State.A },
+                { '}', State.B },
                 { 'A', State.D }
             } }
         };
@@ -62,6 +62,8 @@
                     case State.E: throw new ArgumentException($"template string has unbalanced brackets! (stopped at: {counter})");
                 }
             }
+            if (state != State.D && state != State.F) // if state machine ended in not terminator stages
+                throw new ArgumentException($"template string has unbalanced brackets! (stopped at: {counter})");
             return result;
         }
     }

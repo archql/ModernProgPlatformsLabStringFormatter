@@ -1,6 +1,9 @@
 using NUnit.Framework;
 
-namespace Tests
+using lab5StringFormatter.Core;
+using System;
+
+namespace lab5StringFormatter.Tests
 {
     public class Tests
     {
@@ -10,9 +13,44 @@ namespace Tests
         }
 
         [Test]
-        public void Test1()
+        public void TestNoObjectGiven()
         {
-            Assert.Pass();
+            var res = StringFormatter.Shared.Format("", null);
+            Assert.That(res, Is.EqualTo(""));
+
+            res = StringFormatter.Shared.Format("a{{}}a", null);
+            Assert.That(res, Is.EqualTo("a{}a"));
+
+            res = StringFormatter.Shared.Format("a{{{{{{{{ }}}} }}}}a", null);
+            Assert.That(res, Is.EqualTo("a{{{{ }} }}a"));
+
+            res = StringFormatter.Shared.Format("a {{ bb }} {} {}", null);
+            Assert.That(res, Is.EqualTo("a { bb }  "));
+
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var res = StringFormatter.Shared.Format(" {}{ ", null);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                res = StringFormatter.Shared.Format(" {}{", null);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                res = StringFormatter.Shared.Format(" {}} ", null);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                res = StringFormatter.Shared.Format(" {}}", null);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                res = StringFormatter.Shared.Format(" {}}{", null);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                res = StringFormatter.Shared.Format(" {}}{ ", null);
+            });
         }
     }
 }
