@@ -1,4 +1,7 @@
-﻿namespace lab5StringFormatter.Core
+﻿using System;
+using System.Collections.Concurrent;
+
+namespace lab5StringFormatter.Core
 {
     public class StringFormatter : IStringFormatter
     {
@@ -57,14 +60,52 @@
                 switch(state)
                 {
                     case State.D: result += chr; break;
-                    case State.A: memStart = counter; break;
-                    case State.F: member = template.Substring(memStart, counter - memStart - 1); break; // and analyse member here
+                    case State.A: memStart = counter + 1; break;
+                    case State.F: result += getValueByMember(template.Substring(memStart, counter - memStart), target); break; 
                     case State.E: throw new ArgumentException($"template string has unbalanced brackets! (stopped at: {counter})");
                 }
             }
             if (state != State.D && state != State.F) // if state machine ended in not terminator stages
                 throw new ArgumentException($"template string has unbalanced brackets! (stopped at: {counter})");
             return result;
+        }
+
+        //private ConcurrentDictionary<string> _cache;
+
+        private string getValueByMember(string member, object target)
+        {
+            if (member == "")
+                return member;
+            if (target == null) { 
+                throw new ArgumentNullException(nameof(target));
+            }
+
+            // check cache 
+            
+            // if not cached
+            var propertyInfo = target.GetType().GetProperty(member);
+            if (propertyInfo != null)
+            {
+                var resVal = propertyInfo.GetValue(target);
+                if (resVal == null)
+                    return "null";
+                var resStr = resVal.ToString();
+                if (resStr == null)
+                    return "null";
+                return resStr;
+            }
+            var memberInfo = target.GetType().GetField(member);
+            if (memberInfo != null)
+            {
+                var resVal = memberInfo.GetValue(target);
+                if (resVal == null)
+                    return "null";
+                var resStr = resVal.ToString();
+                if (resStr == null)
+                    return "null";
+                return resStr;
+            }
+            throw new ArgumentException("field \"" + member + "\" in object \"" + nameof(target) + "\" does not exist or not accessable!");
         }
     }
 }
