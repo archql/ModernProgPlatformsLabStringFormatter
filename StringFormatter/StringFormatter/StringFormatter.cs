@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Linq.Expressions;
 
 namespace lab5StringFormatter.Core
 {
@@ -47,7 +48,7 @@ namespace lab5StringFormatter.Core
         public string Format(string template, object target)
         {
             // parse template string
-            string result = "", member = "";
+            string result = "";
             State state = State.D;
             int counter = -1, memStart = -1;
             foreach (var chr in template)
@@ -70,7 +71,16 @@ namespace lab5StringFormatter.Core
             return result;
         }
 
-        //private ConcurrentDictionary<string> _cache;
+        private ConcurrentDictionary<Type, ConcurrentDictionary<string, Func<object, string>>> _cache 
+            = new ConcurrentDictionary<Type, ConcurrentDictionary<string, Func<object, string>>>();
+
+        public int getChacheCountForType(Type t)
+        {
+            if (_cache.TryGetValue(t, out var count))
+                return count.Count;
+            else
+                return 0;
+        }
 
         private string getValueByMember(string member, object target)
         {
@@ -79,33 +89,36 @@ namespace lab5StringFormatter.Core
             if (target == null) { 
                 throw new ArgumentNullException(nameof(target));
             }
-
-            // check cache 
             
-            // if not cached
-            var propertyInfo = target.GetType().GetProperty(member);
-            if (propertyInfo != null)
+            // create chache
+            var type = target.GetType();
+            var typedCache = _cache.GetOrAdd(type, new ConcurrentDictionary<string, Func<object, string>>());
+            return _cache[type].GetOrAdd(member, createGetFunc(member, target))(target);
+        }
+        private Func<object, string> createGetFunc(string member, object target)
+        {
+            // prepare input
+            var memberStrParts = member.Split(new char[] { '[', ']' });
+            var memberName = memberStrParts[0];
+            var memberId = (memberStrParts.Length > 1) ? memberStrParts[1] : null;
+            // check if member exists in target
+            var propertyInfo = target.GetType().GetProperty(memberName);
+            var fieldInfo = target.GetType().GetField(memberName);
+            if (fieldInfo == null && propertyInfo == null)
             {
-                var resVal = propertyInfo.GetValue(target);
-                if (resVal == null)
-                    return "null";
-                var resStr = resVal.ToString();
-                if (resStr == null)
-                    return "null";
-                return resStr;
+                throw new ArgumentException("field \"" + memberName + "\" in object \"" + nameof(target) + "\" does not exist or not accessable!");
             }
-            var memberInfo = target.GetType().GetField(member);
-            if (memberInfo != null)
+            // create expr tree
+            ParameterExpression obj = Expression.Parameter(typeof(object), "obj");
+            Expression expr = Expression.PropertyOrField(Expression.TypeAs(obj, target.GetType()), memberName);
+            if (memberId != null) // there is index
             {
-                var resVal = memberInfo.GetValue(target);
-                if (resVal == null)
-                    return "null";
-                var resStr = resVal.ToString();
-                if (resStr == null)
-                    return "null";
-                return resStr;
+                expr = Expression.ArrayAccess(expr, Expression.Constant(int.Parse(memberId), typeof(int)));
             }
-            throw new ArgumentException("field \"" + member + "\" in object \"" + nameof(target) + "\" does not exist or not accessable!");
+            var toString = Expression.Call(expr, "ToString", null, null);
+            var res = Expression.Lambda<Func<object, string>>(toString, obj);
+
+            return res.Compile();
         }
     }
 }
