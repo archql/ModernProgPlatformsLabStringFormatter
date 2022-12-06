@@ -3,6 +3,7 @@ using NUnit.Framework;
 using lab5StringFormatter.Core;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace lab5StringFormatter.Tests
 {
@@ -121,6 +122,41 @@ namespace lab5StringFormatter.Tests
             Assert.That(res, Is.EqualTo("c.a[2] = 3"));
 
             Assert.That(StringFormatter.Shared.getChacheCountForType(typeof(C)), Is.EqualTo(4));
+        }
+
+        [Test]
+        public void TestMultiThreading()
+        {
+            C c = new C();
+            for (int i = 0; i < 20; i++)
+            {
+                ThreadPool.QueueUserWorkItem(ThWorkItem, c);
+            }
+            Thread.Sleep(1000);
+
+            Console.WriteLine("Main thread exits.");
+            Assert.Pass();
+        }
+
+        public static void ThWorkItem(Object? stateInfo)
+        {
+            if (stateInfo == null) { 
+                return;
+            }
+            Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
+            var c = (C)stateInfo;
+
+            var res = StringFormatter.Shared.Format("{{c.a[0]}} = {a[0]}", c);
+            Assert.That(res, Is.EqualTo("{c.a[0]} = 1"));
+            res = StringFormatter.Shared.Format("c.a[1] = {a[1]}", c);
+            Assert.That(res, Is.EqualTo("c.a[1] = 2"));
+            res = StringFormatter.Shared.Format("c.a[2] = {a[2]}", c);
+            Assert.That(res, Is.EqualTo("c.a[2] = 3"));
+
+            res = StringFormatter.Shared.Format("c.a = {a}", c);
+            Assert.That(res, Is.EqualTo("c.a = System.Int32[]"));
+
+            Assert.That(StringFormatter.Shared.getChacheCountForType(typeof(C)), Is.LessThanOrEqualTo(4));
         }
     }
 
